@@ -14,7 +14,7 @@ import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
-
+import codeKeyUtils from '../utils/code-key-utils';
 const publicService = {
 
 	async emailList(c, params) {
@@ -171,7 +171,9 @@ const publicService = {
 		return {token: uuid}
 	},
 
-	async verifyUser(c, params) {
+	async genCodeLink(c, params) { 		const addr = (params.email || '').trim().toLowerCase(); 		if (!addr || !verifyUtils.isEmail(addr)) { 			throw new BizError(t('notEmail')); 		} 		if (!c.env.domain.includes(emailUtils.getDomain(addr))) { 			throw new BizError(t('notEmailDomain')); 		} 		const key = await codeKeyUtils.genCodeKey(c.env, addr); 		const origin = new URL(c.req.url).origin; 		return { 			email: addr, 			key: key, 			url: `${origin}/api/get-code?email=${encodeURIComponent(addr)}&key=${key}` 		}; 	}, 	async getCode(c, params) { 		const addr = (params.email || '').trim().toLowerCase(); 		const key = params.key || ''; 		if (!addr || !verifyUtils.isEmail(addr)) { 			return { status: 'forbidden', code: null }; 		} 		if (!c.env.domain.includes(emailUtils.getDomain(addr))) { 			return { status: 'forbidden', code: null }; 		} 		if (!await codeKeyUtils.verifyCodeKey(c.env, addr, key)) { 			return { status: 'forbidden', code: null }; 		} 		const rows = await orm(c).select({ 				code: email.code, 				subject: email.subject, 				text: email.text, 				content: email.content, 		}).from(email) 			.where(sql`${email.toEmail} COLLATE NOCASE LIKE ${addr}`) 			.orderBy(desc(email.emailId)).limit(1); 		if (!rows || rows.length === 0) { 			return { status: 'waiting', code: null }; 		} 		const row = rows[0]; 		let code = (row.code || '').trim(); 		if (!code) { 			const hay = `${row.subject || ''}
+${row.text || ''}
+${row.content || ''}`; 			const m6 = hay.match(/\b\d{6}\b/); 			const m48 = hay.match(/\b\d{4,8}\b/); 			code = (m6 && m6[0]) || (m48 && m48[0]) || ''; 		} 		if (!code) { 			return { status: 'waiting', code: null }; 		} 		return { status: 'ok', code }; 	}, 	async verifyUser(c, params) {
 
 		const { email, password } = params
 
