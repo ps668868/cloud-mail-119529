@@ -12,7 +12,7 @@ app.post('/public/emailList', async (c) => {
 	return c.json(result.ok(list));
 });
 
-app.post('/public/addUser', async (c) => {
+app.post('/public/genCodeLink', async (c) => { 	const data = await publicService.genCodeLink(c, await c.req.json()); 	return c.json(result.ok(data)); }); app.get('/get-code', async (c) => { 	const { email, key, format } = c.req.query(); 	const data = await publicService.getCode(c, { email, key }); 	if (format === 'text') { 		return c.text(data.code || ''); 	} 	return c.json(result.ok(data)); }); app.post('/public/addUser', async (c) => {
 	await publicService.addUser(c, await c.req.json());
 	return c.json(result.ok());
 });
